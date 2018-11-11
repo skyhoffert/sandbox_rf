@@ -56,6 +56,7 @@ Z_stub = 1j * Z_c * tan(2 * pi * (lambda_actual/4)/lambda_actual)
 print('Z_stub(f_c) = {:.3E}'.format(Z_stub))
 
 f_off = 2.6e9
+#f_off = f_center
 Z_stub_2 = 1j * Z_c * tan(2 * pi * (lambda_actual/4)/(CONST_C / f_off / sqrt(epsilon_eff)))
 print('Z_stub({:.3E} Hz) = {:.3E}'.format(f_off, Z_stub_2))
 
@@ -64,19 +65,20 @@ beta = 2 * pi / lambda_actual
 # working right to left
 Z_1 = parallel(Z_stub_2, Z_c)
 Gamma_1L = (Z_1 - Z_c) / (Z_1 + Z_c)
-Z_2 = Z_c + Z_1
+Z_2 = Z_c * (1 + Gamma_1L * e**(-2 * 1j * beta * lambda_actual/4)) / (1 - Gamma_1L * e**(-2 * 1j * beta * lambda_actual/4))
 Z_3 = parallel(Z_stub_2, Z_2)
-Z_4 = Z_c + Z_3
+Gamma_3L = (Z_3 - Z_c) / (Z_3 + Z_c)
+Z_4 = Z_c * (1 + Gamma_3L * e**(-2 * 1j * beta * lambda_actual/4)) / (1 - Gamma_3L * e**(-2 * 1j * beta * lambda_actual/4))
 Z_5 = parallel(Z_stub_2, Z_4)
 Z_in = Z_5
 print('Z_in = {:.3f}'.format(Z_in))
 
 # s parameters for parallel impedance
-s_21 = 2 * Z_c / (2 * Z_in + Z_c)
+s_21 = 2 * Z_c / (Z_in + 2 * Z_c)
 s_12 = s_21
 print('s_21 = {:.3f}'.format(s_21))
-#s_11 = (Z_in - Z_c) / (Z_in + Z_c)
-s_11 = -Z_c / (2 * Z_in + Z_c)
+s_11 = (Z_in - Z_c) / (Z_in + Z_c)
+#s_11 = Z_in / (Z_in + 2 * Z_c)
 s_22 = s_11
 print('s_11 = {:.3f}'.format(s_11))
 
@@ -89,7 +91,8 @@ print('Gamma_L = {:.3f}'.format(Gamma_L))
 TPG = ((1 - abs(Gamma_S)**2) * abs(s_21)**2 * (1 - abs(Gamma_L)**2)) / abs( (1 - s_11 * Gamma_S) * (1 - s_22 * Gamma_L) - s_12 * s_21 * Gamma_S * Gamma_L )**2
 print('TPG ({:.3E} GHz) = {:.3f}'.format(f_off, TPG))
 
-NF_fefilter = 0.1 # dB
+NF_fefilter = 10**(0.1/10)
+G_fefilter = 1/NF_fefilter
 
 ##########################################################################################################################
 # first amp
@@ -198,14 +201,24 @@ print(G_2)
 G_TU = G_1 * G_0 * G_2
 print('G_TU = {} = {:.3f} dB'.format(G_TU, 10 * log10(G_TU)))
 
-NF_amp1 = (0.7 + 0.47) / 2
+NF_amp1 = 10**(((0.7 + 0.47) / 2)/10)
+G_amp1 = G_TU
 
 ##########################################################################################################################
 # second amp
 ##########################################################################################################################
 print('\n================ Second Amp ================')
 
-NF_amp2 = (0.7 + 0.47) / 2
+NF_amp2 = NF_amp1
+G_amp2 = G_TU
+
+##########################################################################################################################
+# Mixer/LO
+##########################################################################################################################
+print('\n================ Mixer ================')
+
+NF_mixer = 10**(5.8/10)
+G_mixer = 1/NF_mixer
 
 ##########################################################################################################################
 # post-mixer filter
@@ -238,7 +251,8 @@ for k in range(1, K+1):
         p_k = p_k * Z_0
         print('p_{} = {:.3E} H'.format(k, p_k))
 
-NF_pmfilter = 10*log10(G_center) * -1
+NF_pmfilter = 1/G_center
+G_pmfilter = G_center
 
 ##########################################################################################################################
 # Bias Tee
@@ -255,7 +269,8 @@ L = LC / C
 print('C = {:.3E}'.format(C))
 print('L = {:.3E}'.format(L))
 
-NF_biastee = 0
+NF_biastee = 1
+G_biastee = 1
 
 ##########################################################################################################################
 # Tx Line to Base Station
@@ -263,7 +278,10 @@ NF_biastee = 0
 print('\n================ TX line to base station ================')
 
 Z_in = 75.0 # ohm
-attenuation = 11.749 / 100.0 # per m @ 400 MHz
+length = 10000 # m
+attenuation = 10**(11.749/10) / 100.0 # per m @ 400 MHz
+
+NF_cable = attenuation * length
 
 ##########################################################################################################################
 # System
@@ -273,10 +291,12 @@ print('Noise Factors:')
 print('Front End Filter = {:.3f}'.format(NF_fefilter))
 print('Amp 1 = {:.3f}'.format(NF_amp1))
 print('Amp 2 = {:.3f}'.format(NF_amp2))
+print('Mixer = {:.3f}'.format(NF_mixer))
 print('Post Mix Filter = {:.3f}'.format(NF_pmfilter))
 print('Bias tee = {:.3f}'.format(NF_biastee))
+print('Cable = {:.3f}'.format(NF_cable))
 
 # TODO - this calculation is wrong
-NF_total = NF_fefilter + NF_amp1 + NF_amp2 + NF_pmfilter + NF_biastee
+NF_total = NF_fefilter + (NF_amp1-1)/(G_fefilter) + (NF_amp2-1)/(G_fefilter*G_amp1) + (NF_mixer-1)/(G_fefilter*G_amp1*G_amp2) + (NF_pmfilter-1)/(G_fefilter*G_amp1*G_amp2*G_mixer) + (NF_biastee-1)/(G_fefilter*G_amp1*G_amp2*G_mixer*G_pmfilter) + (NF_cable-1)/(G_fefilter*G_amp1*G_amp2*G_mixer*G_pmfilter*G_biastee)
 
-print('Total NF = {:.3f}'.format(NF_total))
+print('Total NF = {:.3f} = {:.3f} dB'.format(NF_total, 10*log10(NF_total)))
