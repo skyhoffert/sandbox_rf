@@ -60,12 +60,15 @@ f_off = 2.6e9
 Z_stub_2 = 1j * Z_c * tan(2 * pi * (lambda_actual/4)/(CONST_C / f_off / sqrt(epsilon_eff)))
 print('Z_stub({:.3E} Hz) = {:.3E}'.format(f_off, Z_stub_2))
 
-beta = 2 * pi / lambda_actual
+lambda_off = CONST_C / f_off
+
+beta = 2 * pi / lambda_off
 
 # working right to left
 Z_1 = parallel(Z_stub_2, Z_c)
 Gamma_1L = (Z_1 - Z_c) / (Z_1 + Z_c)
-Z_2 = Z_c * (1 + Gamma_1L * e**(-2 * 1j * beta * lambda_actual/4)) / (1 - Gamma_1L * e**(-2 * 1j * beta * lambda_actual/4))
+#Z_2 = Z_c * (1 + Gamma_1L * e**(-2 * 1j * beta * lambda_actual/4)) / (1 - Gamma_1L * e**(-2 * 1j * beta * lambda_actual/4))
+Z_2 = Z_c * (Z_1 + 1j * Z_c * tan(beta * lambda_actual/4)) / (Z_c + 1j * Z_1 * tan(beta * lambda_actual/4))
 Z_3 = parallel(Z_stub_2, Z_2)
 Gamma_3L = (Z_3 - Z_c) / (Z_3 + Z_c)
 Z_4 = Z_c * (1 + Gamma_3L * e**(-2 * 1j * beta * lambda_actual/4)) / (1 - Gamma_3L * e**(-2 * 1j * beta * lambda_actual/4))
@@ -73,20 +76,20 @@ Z_5 = parallel(Z_stub_2, Z_4)
 Z_in = Z_5
 print('Z_in = {:.3f}'.format(Z_in))
 
-# s parameters for parallel impedance
-s_21 = 2 * Z_c / (Z_in + 2 * Z_c)
-s_12 = s_21
-print('s_21 = {:.3f}'.format(s_21))
-s_11 = (Z_in - Z_c) / (Z_in + Z_c)
-#s_11 = Z_in / (Z_in + 2 * Z_c)
-s_22 = s_11
-print('s_11 = {:.3f}'.format(s_11))
-
 Gamma_S = (Z_in - Z_c) / (Z_in + Z_c)
 Gamma_L = (Z_c - Z_in) / (Z_c + Z_in)
 
 print('Gamma_S = {:.3f}'.format(Gamma_S))
 print('Gamma_L = {:.3f}'.format(Gamma_L))
+
+# s parameters for parallel impedance
+s_21 = 2 * Z_c / (Z_in + 2 * Z_c)
+s_12 = s_21
+print('s_21 = {:.3f}'.format(s_21))
+s_11 = (Z_in - Z_c) / (Z_in + Z_c) 
+#s_11 = Z_in / (Z_in + 2 * Z_c)
+s_22 = s_11
+print('s_11 = {:.3f}'.format(s_11))
 
 TPG = ((1 - abs(Gamma_S)**2) * abs(s_21)**2 * (1 - abs(Gamma_L)**2)) / abs( (1 - s_11 * Gamma_S) * (1 - s_22 * Gamma_L) - s_12 * s_21 * Gamma_S * Gamma_L )**2
 print('TPG ({:.3E} GHz) = {:.3f}'.format(f_off, TPG))
@@ -201,8 +204,57 @@ print(G_2)
 G_TU = G_1 * G_0 * G_2
 print('G_TU = {} = {:.3f} dB'.format(G_TU, 10 * log10(G_TU)))
 
+VSWR = (1 + abs(Gamma_S)) / (1 - abs(Gamma_S))
+print('VSWR: ', VSWR)
+
 NF_amp1 = 10**(((0.7 + 0.47) / 2)/10)
 G_amp1 = G_TU
+
+##########################################################################################################################
+# front amp matching network
+##########################################################################################################################
+print('\n================ Front Amp IMN ================')
+
+Gamma_amp = Gamma_S
+Y_in = 1/Z_c
+'''
+l = 0.001
+l_inc = l/10
+while l < 1:
+    G_1 = ((Z_c * (1 + Gamma_amp * e**(-1j * 4 * pi * l / lambda_actual)) / (1 - Gamma_amp * e**(-1j * 4 * pi * l / lambda_actual)))**-1).real
+    if abs(G_1 - Y_in) < 0.001:
+        print(G_1, ', ', l, ' m')
+    l += l_inc
+'''
+l_1 = 0.0109 # m
+Y_1 = (Z_c * (1 + Gamma_amp * e**(-1j * 4 * pi * l_1 / lambda_actual)) / (1 - Gamma_amp * e**(-1j * 4 * pi * l_1 / lambda_actual)))**-1
+print('l_1: {} m'.format(l_1))
+print('Y_in: ', Y_in)
+print('Y_1: {}'.format(Y_1))
+
+'''
+l = 0.001
+l_inc = l/10
+while l < 1:
+    Y_stub = 1j * Y_in * tan(2 * pi * l / lambda_actual)
+    if abs(Y_stub.imag - Y_1.imag) < 0.0001:
+        print(Y_stub, ', ', l, ' m')
+    l += l_inc
+l = 0.001
+l_inc = l/10
+print()
+while l < 1:
+    Y_stub = -1j * Y_in / tan(2 * pi * l / lambda_actual)
+    if abs(Y_stub.imag - Y_1.imag) < 0.0001:
+        print(Y_stub, ', ', l, ' m')
+    l += l_inc
+'''
+# using an open circuit stub
+l_2 = 0.0036 # m
+Y_stub = 1j * Y_in * tan(2 * pi * l_2 / lambda_actual)
+print('l_2: ', l_2)
+print('Y_stub: ', Y_stub)
+Y_stub_1 = Y_stub
 
 ##########################################################################################################################
 # second amp
@@ -211,6 +263,69 @@ print('\n================ Second Amp ================')
 
 NF_amp2 = NF_amp1
 G_amp2 = G_TU
+
+##########################################################################################################################
+# second amp matching network
+##########################################################################################################################
+print('\n================ Second Amp OMN ================')
+
+Gamma_amp = Gamma_L
+Y_in = 1/Z_c
+'''
+l = 0.001
+l_inc = l/10
+while l < 1:
+    G_1 = ((Z_c * (1 + Gamma_amp * e**(-1j * 4 * pi * l / lambda_actual)) / (1 - Gamma_amp * e**(-1j * 4 * pi * l / lambda_actual)))**-1).real
+    if abs(G_1 - Y_in) < 0.001:
+        print(G_1, ', ', l, ' m')
+    l += l_inc
+'''
+l_1 = 0.0154 # m
+Y_1 = (Z_c * (1 + Gamma_amp * e**(-1j * 4 * pi * l_1 / lambda_actual)) / (1 - Gamma_amp * e**(-1j * 4 * pi * l_1 / lambda_actual)))**-1
+print('l_1: {} m'.format(l_1))
+print('Y_in: ', Y_in)
+print('Y_1: {}'.format(Y_1))
+
+'''
+l = 0.001
+l_inc = l/10
+while l < 1:
+    Y_stub = 1j * Y_in * tan(2 * pi * l / lambda_actual)
+    if abs(Y_stub.imag - Y_1.imag) < 0.0001:
+        print(Y_stub, ', ', l, ' m')
+    l += l_inc
+l = 0.001
+l_inc = l/10
+print()
+while l < 1:
+    Y_stub = -1j * Y_in / tan(2 * pi * l / lambda_actual)
+    if abs(Y_stub.imag - Y_1.imag) < 0.0001:
+        print(Y_stub, ', ', l, ' m')
+    l += l_inc
+'''
+# using an open circuit stub
+l_2 = 0.0029 # m
+Y_stub = 1j * Y_in * tan(2 * pi * l_2 / lambda_actual)
+print('l_2: ', l_2)
+print('Y_stub: ', Y_stub)
+Y_stub_2 = Y_stub
+
+# need a combined impedance for the stubs
+Y_stub_p = Y_stub_1 + Y_stub_2
+print(Y_stub_p)
+'''
+l = 0.001
+l_inc = l/10
+while l < 1:
+    Y_stub_p1 = 1j * Y_in * tan(2 * pi * l / lambda_actual)
+    if abs(Y_stub_p1.imag - Y_stub_p.imag) < 0.0001:
+        print(Y_stub_p1, ', ', l, ' m')
+    l += l_inc
+'''
+l_p = 0.0351
+Y_stub_p1 = 1j * Y_in * tan(2 * pi * l_p / lambda_actual)
+print('l_p: ', l_p)
+print('Y_stub_p: ', Y_stub_p1)
 
 ##########################################################################################################################
 # Mixer/LO
