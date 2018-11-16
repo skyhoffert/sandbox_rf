@@ -227,8 +227,10 @@ while l < 1:
     l += l_inc
 '''
 l_1 = 0.0109 # m
+l_1_l = l_1 / lambda_actual
 Y_1 = (Z_c * (1 + Gamma_amp * e**(-1j * 4 * pi * l_1 / lambda_actual)) / (1 - Gamma_amp * e**(-1j * 4 * pi * l_1 / lambda_actual)))**-1
 print('l_1: {} m'.format(l_1))
+print('l_1_l: ', l_1_l)
 print('Y_in: ', Y_in)
 print('Y_1: {}'.format(Y_1))
 
@@ -251,8 +253,10 @@ while l < 1:
 '''
 # using an open circuit stub
 l_2 = 0.0036 # m
+l_2_l = l_2 / lambda_actual
 Y_stub = 1j * Y_in * tan(2 * pi * l_2 / lambda_actual)
 print('l_2: ', l_2)
+print('l_2_l: ', l_2_l)
 print('Y_stub: ', Y_stub)
 Y_stub_1 = Y_stub
 
@@ -281,6 +285,8 @@ while l < 1:
     l += l_inc
 '''
 l_1 = 0.0154 # m
+l_1_l = l_1 / lambda_actual
+print('l_1_l: ', l_1_l)
 Y_1 = (Z_c * (1 + Gamma_amp * e**(-1j * 4 * pi * l_1 / lambda_actual)) / (1 - Gamma_amp * e**(-1j * 4 * pi * l_1 / lambda_actual)))**-1
 print('l_1: {} m'.format(l_1))
 print('Y_in: ', Y_in)
@@ -305,6 +311,8 @@ while l < 1:
 '''
 # using an open circuit stub
 l_2 = 0.0029 # m
+l_2_l = l_2 / lambda_actual
+print('l_2_l: ', l_2_l)
 Y_stub = 1j * Y_in * tan(2 * pi * l_2 / lambda_actual)
 print('l_2: ', l_2)
 print('Y_stub: ', Y_stub)
@@ -323,8 +331,10 @@ while l < 1:
     l += l_inc
 '''
 l_p = 0.0351
+l_p_1 = l_p / lambda_actual
 Y_stub_p1 = 1j * Y_in * tan(2 * pi * l_p / lambda_actual)
 print('l_p: ', l_p)
+print('l_p_1: ', l_p_1)
 print('Y_stub_p: ', Y_stub_p1)
 
 ##########################################################################################################################
@@ -403,15 +413,17 @@ NF_cable = attenuation * length
 ##########################################################################################################################
 print('\n================ System ================')
 print('Noise Factors:')
-print('Front End Filter = {:.3f}'.format(NF_fefilter))
-print('Amp 1 = {:.3f}'.format(NF_amp1))
-print('Amp 2 = {:.3f}'.format(NF_amp2))
-print('Mixer = {:.3f}'.format(NF_mixer))
-print('Post Mix Filter = {:.3f}'.format(NF_pmfilter))
-print('Bias tee = {:.3f}'.format(NF_biastee))
-print('Cable = {:.3f}'.format(NF_cable))
+print('Front End Filter = {:.3f} = {:.3f} dB'.format(NF_fefilter, 10*log10(NF_fefilter)))
+print('Amp 1 = {:.3f} = {:.3f} dB'.format(NF_amp1, 10*log10(NF_amp1)))
+print('Amp 2 = {:.3f} = {:.3f} dB'.format(NF_amp2, 10*log10(NF_amp2)))
+print('Mixer = {:.3f} = {:.3f} dB'.format(NF_mixer, 10*log10(NF_mixer)))
+print('Post Mix Filter = {:.3f} = {:.3f} dB'.format(NF_pmfilter, 10*log10(NF_pmfilter)))
+print('Bias tee = {:.3f} = {:.3f} dB'.format(NF_biastee, 10*log10(NF_biastee)))
+print('Cable = {:.3f} = {:.3f} dB'.format(NF_cable, 10*log10(NF_cable)))
 
-# TODO - this calculation is wrong
 NF_total = NF_fefilter + (NF_amp1-1)/(G_fefilter) + (NF_amp2-1)/(G_fefilter*G_amp1) + (NF_mixer-1)/(G_fefilter*G_amp1*G_amp2) + (NF_pmfilter-1)/(G_fefilter*G_amp1*G_amp2*G_mixer) + (NF_biastee-1)/(G_fefilter*G_amp1*G_amp2*G_mixer*G_pmfilter) + (NF_cable-1)/(G_fefilter*G_amp1*G_amp2*G_mixer*G_pmfilter*G_biastee)
 
 print('Total NF = {:.3f} = {:.3f} dB'.format(NF_total, 10*log10(NF_total)))
+
+NF_temp = NF_fefilter + (NF_amp1-1)/(G_fefilter) + (NF_amp2-1)/(G_fefilter*G_amp1) + (NF_mixer-1)/(G_fefilter*G_amp1*G_amp2) + (NF_pmfilter-1)/(G_fefilter*G_amp1*G_amp2*G_mixer) + (NF_biastee-1)/(G_fefilter*G_amp1*G_amp2*G_mixer*G_pmfilter) + (NF_cable-1)/(G_fefilter*G_amp1*G_amp2*G_mixer*G_pmfilter*G_biastee)
+print('NF_temp: ', 10*log10(NF_temp))
